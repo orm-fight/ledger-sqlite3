@@ -21,14 +21,14 @@ Final balances: **Cash = 5 000**, **Equity = 5 000**, Inventory = 0, Liabilities
 
 ## Core rules
 
-Every journal entry must satisfy:
+Every journal entry names **exactly one debit account and one credit account** with the same amount — the schema enforces this (one row per entry, two FK columns). That makes `Σ debits == Σ credits` structurally true across the whole ledger; it can't drift.
 
-1. **Σ debits == Σ credits** (per entry).
-2. At least **two lines** per entry.
-3. Every `amount > 0`.
-4. Every referenced account exists.
+The two remaining checks are:
 
-That's it. No periods, no audit trail, no VAT, no multi-currency, no reversal. See the sibling repo `ts-orm-research` for a GoB-compliant superset.
+1. `amount > 0`.
+2. Every referenced account exists.
+
+That's it. No periods, no audit trail, no VAT, no multi-currency, no reversal, no split entries. See the sibling repo `ts-orm-research` for a GoB-compliant superset.
 
 ## Running
 

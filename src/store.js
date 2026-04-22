@@ -2,6 +2,10 @@
 
 const DEBIT_NORMAL = new Set(['asset', 'expense']);
 
+function nowIso() {
+  return new Date().toISOString();
+}
+
 async function createAccount(db, { name, type }) {
   await db.run(
     `INSERT INTO accounts (name, type) VALUES (?, ?)`,
@@ -9,40 +13,17 @@ async function createAccount(db, { name, type }) {
   );
 }
 
-async function postEntry(db, { description, lines }) {
-  if (!Array.isArray(lines) || lines.length < 2) {
-    throw new Error('an entry must have at least 2 lines');
+async function postEntry(db, { description, debit, credit, amount, date }) {
+  if (!Number.isInteger(amount) || amount <= 0) {
+    throw new Error(`amount must be a positive integer (got ${amount})`);
   }
 
-  let totalD = 0;
-  let totalC = 0;
-  for (const line of lines) {
-    if (!Number.isInteger(line.amount) || line.amount <= 0) {
-      throw new Error(`amount must be a positive integer (got ${line.amount})`);
-    }
-    if (line.side === 'D') totalD += line.amount;
-    else if (line.side === 'C') totalC += line.amount;
-    else throw new Error(`side must be 'D' or 'C' (got ${line.side})`);
-  }
-  if (totalD !== totalC) {
-    throw new Error(`entry not balanced: ΣD=${totalD} ΣC=${totalC}`);
-  }
-
-  return db.transaction(async () => {
-    const { lastID: entryId } = await db.run(
-      `INSERT INTO journal_entries (description) VALUES (?)`,
-      [description]
-    );
-    for (let i = 0; i < lines.length; i++) {
-      const { account, side, amount } = lines[i];
-      await db.run(
-        `INSERT INTO journal_lines (entry_id, line_no, account, side, amount)
-         VALUES (?, ?, ?, ?, ?)`,
-        [entryId, i + 1, account, side, amount]
-      );
-    }
-    return entryId;
-  });
+  const { lastID } = await db.run(
+    `INSERT INTO journal_entries (description, account_debit, account_credit, amount, date)
+     VALUES (?, ?, ?, ?, ?)`,
+    [description, debit, credit, amount, date]
+  );
+  return lastID;
 }
 
 async function getBalance(db, accountName) {
@@ -54,11 +35,10 @@ async function getBalance(db, accountName) {
 
   const row = await db.get(
     `SELECT
-       COALESCE(SUM(CASE WHEN side = 'D' THEN amount END), 0) AS debit_total,
-       COALESCE(SUM(CASE WHEN side = 'C' THEN amount END), 0) AS credit_total
-     FROM journal_lines
-     WHERE account = ?`,
-    [accountName]
+       COALESCE(SUM(CASE WHEN account_debit  = ? THEN amount END), 0) AS debit_total,
+       COALESCE(SUM(CASE WHEN account_credit = ? THEN amount END), 0) AS credit_total
+     FROM journal_entries`,
+    [accountName, accountName]
   );
 
   return DEBIT_NORMAL.has(account.type)
@@ -69,10 +49,11 @@ async function getBalance(db, accountName) {
 async function trialBalance(db) {
   const rows = await db.all(`
     SELECT a.name, a.type,
-           COALESCE(SUM(CASE WHEN l.side = 'D' THEN l.amount END), 0) AS debit_total,
-           COALESCE(SUM(CASE WHEN l.side = 'C' THEN l.amount END), 0) AS credit_total
+           COALESCE(SUM(CASE WHEN e.account_debit  = a.name THEN e.amount END), 0) AS debit_total,
+           COALESCE(SUM(CASE WHEN e.account_credit = a.name THEN e.amount END), 0) AS credit_total
     FROM accounts a
-    LEFT JOIN journal_lines l ON l.account = a.name
+    LEFT JOIN journal_entries e
+      ON e.account_debit = a.name OR e.account_credit = a.name
     GROUP BY a.name, a.type
     ORDER BY a.name
   `);
@@ -85,4 +66,4 @@ async function trialBalance(db) {
   }));
 }
 
-module.exports = { createAccount, postEntry, getBalance, trialBalance };
+module.exports = { createAccount, postEntry, getBalance, trialBalance, nowIso };

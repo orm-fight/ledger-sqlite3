@@ -8,7 +8,7 @@ const { describe, it, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
 
 const { open, init } = require('../src/db');
-const { createAccount, postEntry, getBalance, trialBalance } = require('../src/store');
+const { createAccount, postEntry, getBalance, trialBalance, nowIso } = require('../src/store');
 
 async function seedAccounts(db) {
   await createAccount(db, { name: 'Cash',        type: 'asset'     });
@@ -31,48 +31,25 @@ describe('ledger', () => {
   });
 
   describe('the rules every entry must follow', () => {
-    it('accepts a balanced two-line entry', async () => {
+    it('records an entry', async () => {
       const id = await postEntry(db, {
         description: 'Buy inventory on credit',
-        lines: [
-          { account: 'Inventory',   side: 'D', amount: 10000 },
-          { account: 'Liabilities', side: 'C', amount: 10000 },
-        ],
+        debit:  'Inventory',
+        credit: 'Liabilities',
+        amount: 10000,
+        date:   nowIso(),
       });
       assert.equal(typeof id, 'number');
-    });
-
-    it('rejects an unbalanced entry (ΣD ≠ ΣC)', async () => {
-      await assert.rejects(
-        postEntry(db, {
-          description: 'off by one thousand',
-          lines: [
-            { account: 'Inventory',   side: 'D', amount: 10000 },
-            { account: 'Liabilities', side: 'C', amount: 9000 },
-          ],
-        }),
-        /not balanced/
-      );
-    });
-
-    it('rejects an entry with fewer than two lines', async () => {
-      await assert.rejects(
-        postEntry(db, {
-          description: 'one-sided',
-          lines: [{ account: 'Cash', side: 'D', amount: 100 }],
-        }),
-        /at least 2 lines/
-      );
     });
 
     it('rejects a zero or negative amount', async () => {
       await assert.rejects(
         postEntry(db, {
           description: 'nothing',
-          lines: [
-            { account: 'Cash',   side: 'D', amount: 0 },
-            { account: 'Equity', side: 'C', amount: 0 },
-          ],
+          debit:  'Cash',
+          credit: 'Equity',
+          amount: 0,
+          date:   nowIso(),
         }),
         /positive integer/
       );
@@ -82,10 +59,10 @@ describe('ledger', () => {
       await assert.rejects(
         postEntry(db, {
           description: 'ghost account',
-          lines: [
-            { account: 'Cash',           side: 'D', amount: 100 },
-            { account: 'DoesNotExist',   side: 'C', amount: 100 },
-          ],
+          debit:  'Cash',
+          credit: 'DoesNotExist',
+          amount: 100,
+          date:   nowIso(),
         })
       );
     });
@@ -103,10 +80,7 @@ describe('ledger', () => {
     it('Transaction 1 — buys $10,000 of inventory on credit', async () => {
       await postEntry(db, {
         description: 'Buy inventory on credit',
-        lines: [
-          { account: 'Inventory',   side: 'D', amount: 10000 },
-          { account: 'Liabilities', side: 'C', amount: 10000 },
-        ],
+        debit: 'Inventory', credit: 'Liabilities', amount: 10000, date: nowIso(),
       });
 
       assert.equal(await getBalance(db, 'Inventory'),   10000);
@@ -116,17 +90,11 @@ describe('ledger', () => {
     it('Transaction 2a — sells the inventory for $15,000 cash', async () => {
       await postEntry(db, {
         description: 'Buy inventory on credit',
-        lines: [
-          { account: 'Inventory',   side: 'D', amount: 10000 },
-          { account: 'Liabilities', side: 'C', amount: 10000 },
-        ],
+        debit: 'Inventory', credit: 'Liabilities', amount: 10000, date: nowIso(),
       });
       await postEntry(db, {
         description: 'Sell inventory for cash',
-        lines: [
-          { account: 'Cash',   side: 'D', amount: 15000 },
-          { account: 'Equity', side: 'C', amount: 15000 },
-        ],
+        debit: 'Cash', credit: 'Equity', amount: 15000, date: nowIso(),
       });
 
       assert.equal(await getBalance(db, 'Cash'),   15000);
@@ -136,24 +104,15 @@ describe('ledger', () => {
     it('Transaction 2b — recognizes relief of inventory (cost of the sale)', async () => {
       await postEntry(db, {
         description: 'Buy inventory on credit',
-        lines: [
-          { account: 'Inventory',   side: 'D', amount: 10000 },
-          { account: 'Liabilities', side: 'C', amount: 10000 },
-        ],
+        debit: 'Inventory', credit: 'Liabilities', amount: 10000, date: nowIso(),
       });
       await postEntry(db, {
         description: 'Sell inventory for cash',
-        lines: [
-          { account: 'Cash',   side: 'D', amount: 15000 },
-          { account: 'Equity', side: 'C', amount: 15000 },
-        ],
+        debit: 'Cash', credit: 'Equity', amount: 15000, date: nowIso(),
       });
       await postEntry(db, {
         description: 'Recognize relief of inventory',
-        lines: [
-          { account: 'Equity',    side: 'D', amount: 10000 },
-          { account: 'Inventory', side: 'C', amount: 10000 },
-        ],
+        debit: 'Equity', credit: 'Inventory', amount: 10000, date: nowIso(),
       });
 
       // Inventory is now empty; Equity shows the gross margin so far.
@@ -164,31 +123,19 @@ describe('ledger', () => {
     it('Transaction 3 — pays the vendor with $10,000 cash', async () => {
       await postEntry(db, {
         description: 'Buy inventory on credit',
-        lines: [
-          { account: 'Inventory',   side: 'D', amount: 10000 },
-          { account: 'Liabilities', side: 'C', amount: 10000 },
-        ],
+        debit: 'Inventory', credit: 'Liabilities', amount: 10000, date: nowIso(),
       });
       await postEntry(db, {
         description: 'Sell inventory for cash',
-        lines: [
-          { account: 'Cash',   side: 'D', amount: 15000 },
-          { account: 'Equity', side: 'C', amount: 15000 },
-        ],
+        debit: 'Cash', credit: 'Equity', amount: 15000, date: nowIso(),
       });
       await postEntry(db, {
         description: 'Recognize relief of inventory',
-        lines: [
-          { account: 'Equity',    side: 'D', amount: 10000 },
-          { account: 'Inventory', side: 'C', amount: 10000 },
-        ],
+        debit: 'Equity', credit: 'Inventory', amount: 10000, date: nowIso(),
       });
       await postEntry(db, {
         description: 'Pay vendor',
-        lines: [
-          { account: 'Liabilities', side: 'D', amount: 10000 },
-          { account: 'Cash',        side: 'C', amount: 10000 },
-        ],
+        debit: 'Liabilities', credit: 'Cash', amount: 10000, date: nowIso(),
       });
 
       // End state matches Wikipedia exactly:
@@ -200,57 +147,13 @@ describe('ledger', () => {
     });
   });
 
-  describe('the trial balance always balances', () => {
-    it('ΣD equals ΣC across the whole ledger, after every step', async () => {
-      const steps = [
-        {
-          description: 'Buy inventory on credit',
-          lines: [
-            { account: 'Inventory',   side: 'D', amount: 10000 },
-            { account: 'Liabilities', side: 'C', amount: 10000 },
-          ],
-        },
-        {
-          description: 'Sell inventory for cash',
-          lines: [
-            { account: 'Cash',   side: 'D', amount: 15000 },
-            { account: 'Equity', side: 'C', amount: 15000 },
-          ],
-        },
-        {
-          description: 'Recognize relief of inventory',
-          lines: [
-            { account: 'Equity',    side: 'D', amount: 10000 },
-            { account: 'Inventory', side: 'C', amount: 10000 },
-          ],
-        },
-        {
-          description: 'Pay vendor',
-          lines: [
-            { account: 'Liabilities', side: 'D', amount: 10000 },
-            { account: 'Cash',        side: 'C', amount: 10000 },
-          ],
-        },
-      ];
-
-      for (const step of steps) {
-        await postEntry(db, step);
-        const [{ d }] = await db.all(
-          `SELECT COALESCE(SUM(amount), 0) AS d FROM journal_lines WHERE side = 'D'`
-        );
-        const [{ c }] = await db.all(
-          `SELECT COALESCE(SUM(amount), 0) AS c FROM journal_lines WHERE side = 'C'`
-        );
-        assert.equal(d, c, `ledger unbalanced after: ${step.description}`);
-      }
-    });
-
+  describe('the trial balance', () => {
     it('final trial balance matches Wikipedia (Cash=+5000, Equity=+5000, others 0)', async () => {
       for (const entry of [
-        { description: '1',  lines: [{ account: 'Inventory',   side: 'D', amount: 10000 }, { account: 'Liabilities', side: 'C', amount: 10000 }] },
-        { description: '2a', lines: [{ account: 'Cash',        side: 'D', amount: 15000 }, { account: 'Equity',      side: 'C', amount: 15000 }] },
-        { description: '2b', lines: [{ account: 'Equity',      side: 'D', amount: 10000 }, { account: 'Inventory',   side: 'C', amount: 10000 }] },
-        { description: '3',  lines: [{ account: 'Liabilities', side: 'D', amount: 10000 }, { account: 'Cash',        side: 'C', amount: 10000 }] },
+        { description: '1',  debit: 'Inventory',   credit: 'Liabilities', amount: 10000, date: nowIso() },
+        { description: '2a', debit: 'Cash',        credit: 'Equity',      amount: 15000, date: nowIso() },
+        { description: '2b', debit: 'Equity',      credit: 'Inventory',   amount: 10000, date: nowIso() },
+        { description: '3',  debit: 'Liabilities', credit: 'Cash',        amount: 10000, date: nowIso() },
       ]) {
         await postEntry(db, entry);
       }

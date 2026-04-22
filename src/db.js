@@ -11,17 +11,12 @@ const SCHEMA = `
   );
 
   CREATE TABLE IF NOT EXISTS journal_entries (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    description TEXT NOT NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS journal_lines (
-    entry_id INTEGER NOT NULL REFERENCES journal_entries(id),
-    line_no  INTEGER NOT NULL,
-    account  TEXT    NOT NULL REFERENCES accounts(name),
-    side     TEXT    NOT NULL CHECK (side IN ('D','C')),
-    amount   INTEGER NOT NULL CHECK (amount > 0),
-    PRIMARY KEY (entry_id, line_no)
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    description    TEXT    NOT NULL,
+    account_debit  TEXT    NOT NULL REFERENCES accounts(name),
+    account_credit TEXT    NOT NULL REFERENCES accounts(name),
+    amount         INTEGER NOT NULL CHECK (amount > 0),
+    date           TEXT    NOT NULL
   );
 `;
 
