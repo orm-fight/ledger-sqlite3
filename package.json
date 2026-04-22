@@ -1,0 +1,16 @@
+{
+  "name": "ledger-sqlite3",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Minimal double-entry ledger on top of sqlite3 (no ORM). Mirrors the Wikipedia Double-entry bookkeeping Transaction Example.",
+  "main": "src/store.js",
+  "scripts": {
+    "test": "node --test test/"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "sqlite3": "^5.1.7"
+  }
+}
