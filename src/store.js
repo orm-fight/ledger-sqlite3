@@ -1,6 +1,10 @@
 'use strict';
 
-const DEBIT_NORMAL = new Set(['asset', 'expense']);
+function balance(totals) {
+  return ['asset', 'expense'].includes(totals.type)
+    ? totals.debit_total - totals.credit_total
+    : totals.credit_total - totals.debit_total;
+}
 
 function nowIso() {
   return new Date().toISOString();
@@ -33,7 +37,7 @@ async function getBalance(db, accountName) {
   );
   if (!account) throw new Error(`unknown account: ${accountName}`);
 
-  const row = await db.get(
+  const totals = await db.get(
     `SELECT
        COALESCE(SUM(CASE WHEN account_debit  = ? THEN amount END), 0) AS debit_total,
        COALESCE(SUM(CASE WHEN account_credit = ? THEN amount END), 0) AS credit_total
@@ -41,13 +45,11 @@ async function getBalance(db, accountName) {
     [accountName, accountName]
   );
 
-  return DEBIT_NORMAL.has(account.type)
-    ? row.debit_total - row.credit_total
-    : row.credit_total - row.debit_total;
+  return balance({ type: account.type, ...totals });
 }
 
 async function trialBalance(db) {
-  const rows = await db.all(`
+  const allTotals = await db.all(`
     SELECT a.name, a.type,
            COALESCE(SUM(CASE WHEN e.account_debit  = a.name THEN e.amount END), 0) AS debit_total,
            COALESCE(SUM(CASE WHEN e.account_credit = a.name THEN e.amount END), 0) AS credit_total
@@ -57,12 +59,10 @@ async function trialBalance(db) {
     GROUP BY a.name, a.type
     ORDER BY a.name
   `);
-  return rows.map((r) => ({
-    account: r.name,
-    type: r.type,
-    balance: DEBIT_NORMAL.has(r.type)
-      ? r.debit_total - r.credit_total
-      : r.credit_total - r.debit_total,
+  return allTotals.map((totals) => ({
+    account: totals.name,
+    type: totals.type,
+    balance: balance(totals),
   }));
 }
 
