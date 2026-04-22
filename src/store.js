@@ -1,9 +1,9 @@
 'use strict';
 
-function balance(totals) {
-  return ['asset', 'expense'].includes(totals.type)
-    ? totals.debit_total - totals.credit_total
-    : totals.credit_total - totals.debit_total;
+function balance({ type, debit_total, credit_total }) {
+  return ['asset', 'expense'].includes(type)
+    ? debit_total - credit_total
+    : credit_total - debit_total;
 }
 
 function nowIso() {
