@@ -7,7 +7,7 @@
 const { describe, it, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
 
-const { open, init } = require('../src/db');
+const { createFixture } = require('./fixtures');
 const { createAccount, postEntry, getBalance, trialBalance, nowIso } = require('../src/store');
 
 async function seedAccounts(db) {
@@ -18,16 +18,15 @@ async function seedAccounts(db) {
 }
 
 describe('ledger', () => {
-  let db;
+  let db, cleanup;
 
   beforeEach(async () => {
-    db = open(':memory:');
-    await init(db);
+    ({ db, cleanup } = await createFixture());
     await seedAccounts(db);
   });
 
   afterEach(async () => {
-    await db.close();
+    await cleanup();
   });
 
   describe('the rules every entry must follow', () => {

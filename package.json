@@ -5,7 +5,7 @@
   "description": "Minimal double-entry ledger on top of sqlite3 (no ORM). Mirrors the Wikipedia Double-entry bookkeeping Transaction Example.",
   "main": "src/store.js",
   "scripts": {
-    "test": "node --test test/"
+    "test": "node --test test/*.test.js"
   },
   "engines": {
     "node": ">=20"
