@@ -8,7 +8,8 @@ const { describe, it, beforeEach, afterEach } = require('node:test');
 const assert = require('node:assert/strict');
 
 const { createFixture } = require('./fixtures');
-const { createAccount, postEntry, getBalance, trialBalance, nowIso } = require('../src/store');
+const { createAccount, postEntry, getBalance, trialBalance } = require('../src/store');
+const { nowIso } = require('../src/utils');
 
 async function seedAccounts(db) {
   await createAccount(db, { name: 'Cash',        type: 'asset'     });

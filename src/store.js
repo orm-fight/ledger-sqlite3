@@ -1,14 +1,6 @@
 'use strict';
 
-function balance({ type, debit_total, credit_total }) {
-  return ['asset', 'expense'].includes(type)
-    ? debit_total - credit_total
-    : credit_total - debit_total;
-}
-
-function nowIso() {
-  return new Date().toISOString();
-}
+const { balance } = require('./utils');
 
 async function createAccount(db, { name, type }) {
   await db.run(
@@ -66,4 +58,4 @@ async function trialBalance(db) {
   }));
 }
 
-module.exports = { createAccount, postEntry, getBalance, trialBalance, nowIso };
+module.exports = { createAccount, postEntry, getBalance, trialBalance };
