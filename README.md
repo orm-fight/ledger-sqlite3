@@ -45,8 +45,10 @@ Amounts are stored as **integer dollars** to keep the tests readable (`10000` me
 
 ## Siblings
 
-This is the first of a planned series of repos demonstrating the same scenario over different SQLite bindings:
+This is one repo in the [orm-fight](https://github.com/orm-fight) series — the same scenario implemented over many TypeScript ORMs and SQL drivers, used to track release cadence, CVEs, and SBOM drift over time. This repo is the **no-ORM baseline**.
 
-- `ledger-sqlite3` (this repo) — `sqlite3` (async, callback-based, promisified)
-- `ledger-better-sqlite3` — `better-sqlite3` (synchronous)
-- `ledger-node-sqlite` — Node 22+ built-in `node:sqlite`
+- [`ledger-sqlite3`](https://github.com/orm-fight/ledger-sqlite3) (this repo) — `sqlite3` (async, callback-based, promisified)
+- [`ledger-prisma`](https://github.com/orm-fight/ledger-prisma) — [Prisma](https://www.prisma.io/) ORM with the SQLite provider
+- `ledger-better-sqlite3` — `better-sqlite3` (synchronous), planned
+- `ledger-node-sqlite` — Node 22+ built-in `node:sqlite`, planned
+- Additional ORMs (Drizzle, TypeORM, MikroORM, Kysely, Sequelize, Objection.js) planned
